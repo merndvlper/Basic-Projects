@@ -1,0 +1,11 @@
+[package]
+name = "create_universe"
+edition = "2024.beta" 
+
+[dependencies]
+
+[addresses]
+universe = "0x0"
+
+
+
