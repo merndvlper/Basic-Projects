@@ -7,9 +7,14 @@ public struct Universe has key, store{
     galaxys: vector<Galaxy>
 } 
 
-public fun new_universe(ctx: &mut TxContext): Universe{
+fun new_universe(ctx: &mut TxContext): Universe{
     Universe{
         id: object::new(ctx),
         galaxys: vector::empty()
     }
+}
+
+entry fun create_universe(ctx: &mut TxContext){
+    let universe = new_universe(ctx);
+    transfer::share_object(universe);
 }
