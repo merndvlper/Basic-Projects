@@ -2,3 +2,7 @@
 build
 target 
 Move.lock
+
+node_modules/
+.pnp
+.pnp.js

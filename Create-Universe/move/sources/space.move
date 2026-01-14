@@ -19,7 +19,7 @@ const E_ORBIT_NOT_FOUND: u64 = 4;
 
 public struct Planet has copy, drop, store {
     name: String,
-    orbit: u8, // u8 tipine dönüştür
+    orbit: u8,
 }
 
 public struct Star has copy, drop, store {
