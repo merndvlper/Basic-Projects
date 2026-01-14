@@ -6,25 +6,27 @@ use std::string::String;
 use std::unit_test::assert_eq;
 
 #[test_only]
+use sui::test_scenario;
+
+#[test_only]
 use std::debug::print;
 
 const MAX_ORBITS: u64 = 15;
 
 const E_INVALID_ORBIT_ID: u64 = 1;
-const E_ORBIT_LIMIT_EXCEEDED: u64 = 2;
 const E_ORBIT_ALREADY_EXISTS: u64 = 3;
 const E_ORBIT_NOT_FOUND: u64 = 4;
 
 public struct Planet has copy, drop, store {
     name: String,
-    orbit: vector<u8>, // u8 tipine dönüştür
+    orbit: u8, // u8 tipine dönüştür
 }
 
 public struct Star has copy, drop, store {
     name: String,
     planets: vector<Planet>,
     alive: bool,
-    orbit: vector<u8>,
+    orbit: u8,
 }
 
 public struct Galaxy has copy, drop, store {
@@ -32,19 +34,26 @@ public struct Galaxy has copy, drop, store {
     stars: vector<Star>,
 }
 
-public fun new_planet(name: String): Planet {
+public struct Universe has key {
+    id: UID,
+    galaxies: vector<Galaxy>,
+}
+
+public fun new_planet(name: String, orbit: u8): Planet {
+    assert!(orbit >= 1 && orbit <= (MAX_ORBITS as u8), E_INVALID_ORBIT_ID);
     Planet {
         name,
-        orbit: vector::empty(),
+        orbit,
     }
 }
 
-public fun new_star(name: String): Star {
+public fun new_star(name: String, orbit: u8): Star {
+    assert!(orbit >= 1 && orbit <= (MAX_ORBITS as u8), E_INVALID_ORBIT_ID);
     Star {
         name,
         planets: vector::empty(),
         alive: true,
-        orbit: vector::empty(),
+        orbit,
     }
 }
 
@@ -55,66 +64,66 @@ public fun new_galaxy(name: String): Galaxy {
     }
 }
 
-
-
-fun update_galaxy(galaxy: &mut Galaxy, star:Star, index: u64) {
-
-    let star_ref= star;
-
-    vector::remove(&mut galaxy.stars, index);
-
-    vector::push_back(&mut galaxy.stars, star_ref);
+fun new_universe(ctx: &mut TxContext): Universe {
+    Universe {
+        id: object::new(ctx),
+        galaxies: vector::empty(),
+    }
 }
 
-public fun add_planet_on_star(star: &mut Star, orbitId: u8, planet: Planet) {
-    let mut planet = planet;
-    assert!(orbitId >= 1 && orbitId <= (MAX_ORBITS as u8), E_INVALID_ORBIT_ID);
+fun update_galaxy(galaxy: &mut Galaxy, _star: &mut Star, index: u64) {
+    let star_ref = vector::borrow_mut(&mut galaxy.stars, index);
+
+    star_ref.alive = _star.alive;
+    star_ref.planets = _star.planets;
+}
+
+entry fun create_universe(ctx: &mut TxContext) {
+    let universe = new_universe(ctx);
+    transfer::share_object(universe);
+}
+
+public fun add_planet_on_star(star: &mut Star, planet: Planet) {
+    let orbitId = planet.orbit;
 
     let len = vector::length(&star.planets);
-    assert!(len <= MAX_ORBITS, E_ORBIT_LIMIT_EXCEEDED);
 
     let mut i = 0;
     while (i < len) {
         let existing_orbit = vector::borrow(&star.planets, i);
-        assert!(existing_orbit.orbit[0] != orbitId, E_ORBIT_ALREADY_EXISTS);
+        assert!(existing_orbit.orbit != orbitId, E_ORBIT_ALREADY_EXISTS);
         i = i+1;
     };
 
-    vector::push_back(&mut planet.orbit, orbitId);
     vector::push_back(&mut star.planets, planet);
 }
 
-public fun add_star_on_galaxy(galaxy: &mut Galaxy, orbitId: u8, star: Star) {
-    let mut star_ref = star;
-    assert!(orbitId >= 1 && orbitId <= (MAX_ORBITS as u8), E_INVALID_ORBIT_ID);
+public fun add_star_on_galaxy(galaxy: &mut Galaxy, star: Star) {
+    let orbitId = star.orbit;
+
     let len = vector::length(&galaxy.stars);
-    assert!(len <= MAX_ORBITS, E_ORBIT_LIMIT_EXCEEDED);
 
     let mut i = 0;
-    let mut ref_orbit = len;
     while (i < len) {
         let existing_orbit = vector::borrow(&galaxy.stars, i);
-        assert!(existing_orbit.orbit[0] != orbitId, E_ORBIT_ALREADY_EXISTS);
-        if(existing_orbit.orbit[0]== orbitId){
-            ref_orbit = i;
-        };
+        assert!(existing_orbit.orbit != orbitId, E_ORBIT_ALREADY_EXISTS);
         i = i + 1;
     };
-    
-    vector::push_back(&mut star_ref.orbit, orbitId);
-    print(&star);
-    vector::push_back(&mut galaxy.stars, star_ref);
-    update_galaxy( galaxy, star_ref, ref_orbit);
+
+    vector::push_back(&mut galaxy.stars, star);
 }
 
-public fun kill_star(star:Star, orbitId: u8, galaxy: &mut Galaxy) {
-    let mut star= star;
+public fun add_galaxy_on_universe(universe: &mut Universe, galaxy: Galaxy) {
+    vector::push_back(&mut universe.galaxies, galaxy);
+}
+
+public fun kill_star(star: &mut Star, orbitId: u8, galaxy: &mut Galaxy) {
     let len = vector::length(&galaxy.stars);
     let mut i = 0;
     let mut orbit_ref = len;
     while (i < len) {
         let star_ref = vector::borrow(&galaxy.stars, i);
-        if (star_ref.orbit[0] == orbitId) {
+        if (star_ref.orbit == orbitId) {
             orbit_ref = i;
         };
         i = i+1;
@@ -131,16 +140,16 @@ public fun kill_star(star:Star, orbitId: u8, galaxy: &mut Galaxy) {
     };
 
     star.alive = false;
-
-    update_galaxy(galaxy, star, orbit_ref);
+    let star_ref = star;
+    update_galaxy(galaxy, star_ref, orbit_ref);
 }
 
 #[test]
 fun test_add_planet_on_star() {
-    let planet = new_planet(b"Planet 1".to_string());
-    let mut star = new_star(b"Star 1".to_string());
+    let planet = new_planet(b"Planet 1".to_string(), 1);
+    let mut star = new_star(b"Star 1".to_string(), 2);
 
-    add_planet_on_star(&mut star, 1, planet);
+    add_planet_on_star(&mut star, planet);
 
     let len = vector::length(&star.planets);
 
@@ -149,11 +158,10 @@ fun test_add_planet_on_star() {
 
 #[test]
 fun test_add_star_on_galaxy() {
-    let star = new_star(b"Star 1".to_string());
+    let star = new_star(b"Star 1".to_string(), 1);
     let mut galaxy = new_galaxy(b"Galaxy 1".to_string());
 
-    add_star_on_galaxy(&mut galaxy, 1, star);
-print(&star);
+    add_star_on_galaxy(&mut galaxy, star);
     let len = vector::length(&galaxy.stars);
     assert_eq!(len, 1);
 }
@@ -161,59 +169,101 @@ print(&star);
 #[test]
 #[expected_failure(abort_code = E_ORBIT_ALREADY_EXISTS)]
 fun test_add_same_orbit_ids_for_planets() {
-    let planet_1 = new_planet(b"planet 1".to_string());
-    let planet_2 = new_planet(b"planet 2".to_string());
+    let planet_1 = new_planet(b"planet 1".to_string(), 1);
+    let planet_2 = new_planet(b"planet 2".to_string(), 1);
 
-    let mut star = new_star(b"Star 1".to_string());
+    let mut star = new_star(b"Star 1".to_string(), 1);
 
-    add_planet_on_star(&mut star, 2, planet_1);
-    add_planet_on_star(&mut star, 2, planet_2);
+    add_planet_on_star(&mut star, planet_1);
+    add_planet_on_star(&mut star, planet_2);
 }
 
 #[test]
 #[expected_failure(abort_code = E_ORBIT_ALREADY_EXISTS)]
 fun test_add_same_orbit_ids_for_stars() {
-    let star_1 = new_star(b"Star 1".to_string());
-    let star_2 = new_star(b"Star 2".to_string());
+    let star_1 = new_star(b"Star 1".to_string(), 1);
+    let star_2 = new_star(b"Star 2".to_string(), 1);
 
     let mut galaxy = new_galaxy(b"Galaxy 1".to_string());
 
-    add_star_on_galaxy(&mut galaxy, 2, star_1);
-    add_star_on_galaxy(&mut galaxy, 2, star_2);
+    add_star_on_galaxy(&mut galaxy, star_1);
+    add_star_on_galaxy(&mut galaxy, star_2);
 }
 
 #[test]
 #[expected_failure(abort_code = E_INVALID_ORBIT_ID)]
 fun test_add_star_fails_if_orbit_out_of_range_planets() {
-    let planet = new_planet(b"planet 1".to_string());
-    let mut star = new_star(b"Star 1".to_string());
+    let planet = new_planet(b"planet 1".to_string(), 0);
+    let mut star = new_star(b"Star 1".to_string(), 1);
 
-    add_planet_on_star(&mut star, 0, planet);
+    add_planet_on_star(&mut star, planet);
 }
 
 #[test]
 #[expected_failure(abort_code = E_INVALID_ORBIT_ID)]
-fun test_add_star_fails_if_orbit_out_of_range__stars() {
-    let star = new_star(b"Star 1".to_string());
+fun test_add_star_fails_if_orbit_out_of_range_stars() {
+    let star = new_star(b"Star 1".to_string(), 16);
     let mut galaxy = new_galaxy(b"Galaxy 1".to_string());
 
-    add_star_on_galaxy(&mut galaxy, 16, star);
+    add_star_on_galaxy(&mut galaxy, star);
+}
+
+#[test]
+#[expected_failure(abort_code = E_INVALID_ORBIT_ID)]
+fun test_limit_planets() {
+    let mut star = new_star(b"Star".to_string(), 1);
+
+    let mut i = 1;
+    while (i <= 15) {
+        let planet = new_planet(b"Planet".to_string(), i);
+        add_planet_on_star(&mut star, planet);
+        i = i+ 1;
+    };
+
+    let planet_limit = new_planet(b"Limit".to_string(), 16);
+    add_planet_on_star(&mut star, planet_limit);
 }
 
 #[test]
 fun kill_star_test() {
-    let planet = new_planet(b"Planet".to_string());
-    let planet_2 = new_planet(b"Planet 1".to_string());
+    let planet = new_planet(b"Planet".to_string(), 1);
+    let planet_2 = new_planet(b"Planet 1".to_string(), 2);
 
-    let mut star = new_star(b"Star".to_string());
+    let mut star = new_star(b"Star".to_string(), 1);
     let mut galaxy = new_galaxy(b"Galaxy".to_string());
 
-    add_planet_on_star(&mut star, 1, planet);
-    add_planet_on_star(&mut star, 3, planet_2);
+    add_planet_on_star(&mut star, planet);
+    add_planet_on_star(&mut star, planet_2);
 
-    add_star_on_galaxy(&mut galaxy, 1, star);
-    kill_star(star, 1, &mut galaxy);
-    print(&galaxy);
+    add_star_on_galaxy(&mut galaxy, star);
+    kill_star(&mut star, 1, &mut galaxy);
+
     assert_eq!(galaxy.stars[0].alive, false);
     assert!(vector::length(&galaxy.stars[0].planets) == 0, 1);
+}
+
+#[test_only]
+const ADMIN: address = @0x12;
+
+#[test]
+fun test_create_universe() {
+    let mut scenario = test_scenario::begin(ADMIN);
+    {
+        create_universe(test_scenario::ctx(&mut scenario));
+    };
+    test_scenario::next_tx(&mut scenario, ADMIN);
+    {
+        let planet = new_planet(b"Planet".to_string(), 1);
+        let mut star = new_star(b"Star".to_string(), 2);
+        let mut galaxy = new_galaxy(b"Galaxy".to_string());
+        add_planet_on_star(&mut star, planet);
+        add_star_on_galaxy(&mut galaxy, star);
+        kill_star(&mut star, 2, &mut galaxy);
+        let mut universe = test_scenario::take_shared<Universe>(&scenario);
+        add_galaxy_on_universe(&mut universe, galaxy);
+        print(&universe);
+        test_scenario::return_shared(universe);
+    };
+
+    test_scenario::end(scenario);
 }
