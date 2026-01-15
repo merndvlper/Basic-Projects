@@ -78,10 +78,29 @@ body {
   backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
   border-radius: 20px;
-  padding: 40px;
+  padding: 30px;
+  max-width: 600px;
+  margin: 0 auto;
 
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
+}
+
+.instruction-text {
+  color: #a0aec0;
+  text-shadow: 0 0 5px rgba(160, 174, 192, 0.3);
+}
+
+.universe-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.universe-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .glow-text {
@@ -304,4 +323,81 @@ div[class*="sui-dapp-kit-popover-item"]:hover * {
   font-size: 1rem !important;
   letter-spacing: 0.5px !important;
   text-shadow: 0 0 5px rgba(6, 182, 212, 0.7) !important;
+}
+
+.create-universe-btn {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.8) 0%, rgba(124, 58, 237, 0.8) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.4), 0 0 40px rgba(124, 58, 237, 0.3), inset 0 0 10px rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 800 !important;
+  transition: all 0.3s ease !important;
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.create-universe-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.7), 0 0 60px rgba(124, 58, 237, 0.5) !important;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 1) 0%, rgba(124, 58, 237, 1) 100%) !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+.create-universe-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: 0.5s;
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+
+  20% {
+    left: 100%;
+  }
+
+  100% {
+    left: 100%;
+  }
+}
+
+/* Planet List Container - Mini Hub Styling */
+.planet-list-container {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: inset 0 0 15px rgba(6, 182, 212, 0.1);
+  backdrop-filter: blur(5px);
+}
+
+.planet-list-container .rt-Card {
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.planet-list-container .rt-Card:hover {
+  background: rgba(6, 182, 212, 0.1) !important;
+  border: 1px solid rgba(6, 182, 212, 0.5);
+  transform: translateX(5px);
+  cursor: pointer;
+}
+
+/* Global Pointer Cursor Fix */
+button,
+.rt-Button,
+[role="button"],
+.rt-BaseButton {
+  cursor: pointer !important;
 }
