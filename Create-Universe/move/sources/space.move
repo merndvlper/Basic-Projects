@@ -64,7 +64,7 @@ public fun new_galaxy(name: String): Galaxy {
     }
 }
 
-fun new_universe(ctx: &mut TxContext): Universe {
+public fun new_universe(ctx: &mut TxContext): Universe {
     Universe {
         id: object::new(ctx),
         galaxies: vector::empty(),
@@ -78,8 +78,7 @@ fun update_galaxy(galaxy: &mut Galaxy, _star: &mut Star, index: u64) {
     star_ref.planets = _star.planets;
 }
 
-entry fun create_universe(ctx: &mut TxContext) {
-    let universe = new_universe(ctx);
+entry fun create_universe(universe: Universe) {
     transfer::share_object(universe);
 }
 
@@ -246,21 +245,28 @@ fun kill_star_test() {
 const ADMIN: address = @0x12;
 
 #[test]
-fun test_create_universe() {
+fun test_create_universe_and_kill_star() {
     let mut scenario = test_scenario::begin(ADMIN);
+    
     {
-        create_universe(test_scenario::ctx(&mut scenario));
-    };
-    test_scenario::next_tx(&mut scenario, ADMIN);
-    {
+        let ctx = test_scenario::ctx(&mut scenario);
+        let mut universe = new_universe(ctx);
+
         let planet = new_planet(b"Planet".to_string(), 1);
         let mut star = new_star(b"Star".to_string(), 2);
         let mut galaxy = new_galaxy(b"Galaxy".to_string());
+        
         add_planet_on_star(&mut star, planet);
         add_star_on_galaxy(&mut galaxy, star);
-        kill_star(&mut star, 2, &mut galaxy);
-        let mut universe = test_scenario::take_shared<Universe>(&scenario);
+        kill_star(&mut star, 2, &mut galaxy); 
+
         add_galaxy_on_universe(&mut universe, galaxy);
+        create_universe(universe);
+    };
+
+    test_scenario::next_tx(&mut scenario, ADMIN);
+    {
+        let universe = test_scenario::take_shared<Universe>(&scenario);
         print(&universe);
         test_scenario::return_shared(universe);
     };
